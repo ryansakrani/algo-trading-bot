@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IBKR Day Trader</title>
+  <link rel="stylesheet" href="/static/style.css?v=3">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+</head>
+<body>
+
+<!-- ======================== HEADER ======================== -->
+<header>
+  <span id="mode-badge" class="paper">PAPER</span>
+  <span id="conn-dot"></span>
+  <span id="conn-label" style="font-size:11px">Disconnected</span>
+  <div class="hstat">
+    <span class="val" id="hdr-equity">---</span>
+    <span class="lbl">Equity</span>
+  </div>
+  <div class="hstat">
+    <span class="val" id="hdr-pnl">---</span>
+    <span class="lbl">Day P&amp;L</span>
+  </div>
+  <div class="hstat">
+    <span id="kill-badge" class="ok">---</span>
+    <span class="lbl">Kill Switch</span>
+  </div>
+  <div class="hstat">
+    <span id="loop-badge" class="stopped">stopped</span>
+    <span class="lbl">Loop</span>
+  </div>
+  <div class="hstat">
+    <span class="val" id="hdr-market">---</span>
+    <span class="lbl">Market</span>
+  </div>
+  <div class="hstat">
+    <span class="val" id="hdr-trades">---</span>
+    <span class="lbl">Trades</span>
+  </div>
+  <div class="hstat">
+    <span class="val" id="hdr-open">---</span>
+    <span class="lbl">Open</span>
+  </div>
+  <div class="hstat" style="margin-left:auto">
+    <span class="val" id="hdr-clock">--:--:--</span>
+    <span class="lbl">ET</span>
+  </div>
+</header>
+
+<!-- ======================== NAV ======================== -->
+<nav>
+  <button class="active" data-tab="live" onclick="switchTab('live')">Live</button>
+  <button data-tab="research" onclick="switchTab('research')">Research</button>
+</nav>
+
+<!-- ======================== LIVE VIEW ======================== -->
+<div id="view-live" class="view active">
+
+  <!-- Controls -->
+  <section>
+    <h3>Controls</h3>
+    <div class="controls">
+      <button class="btn btn-green" id="btn-connect" onclick="doConnect()">Connect</button>
+      <button class="btn btn-red" id="btn-disconnect" onclick="doDisconnect()" disabled>Disconnect</button>
+      <button class="btn btn-green" id="btn-start" onclick="doStart()" disabled>Start Loop</button>
+      <button class="btn btn-red" id="btn-stop" onclick="doStop()" disabled>Stop Loop</button>
+      <button class="btn btn-solid-red" id="btn-flatten-all" onclick="showFlattenModal()" disabled>Flatten All</button>
+    </div>
+  </section>
+
+  <!-- Symbols + Strategies -->
+  <section>
+    <h3>Live Symbols &amp; Strategies</h3>
+    <table id="sym-table">
+      <thead>
+        <tr><th>Symbol</th><th>Strategy</th><th>Params</th><th></th></tr>
+      </thead>
+      <tbody id="sym-body"></tbody>
+    </table>
+    <div class="form-row" style="margin-top:6px">
+      <div class="form-group">
+        <label>Add symbol</label>
+        <input type="text" id="add-sym-input" placeholder="MSFT" style="width:80px">
+      </div>
+      <div class="form-group">
+        <label>Strategy</label>
+        <select id="add-sym-strat">
+          <option value="orb">orb</option>
+          <option value="ma_crossover">ma_crossover</option>
+          <option value="mean_reversion">mean_reversion</option>
+          <option value="vwap">vwap</option>
+        </select>
+      </div>
+      <button class="btn btn-green" onclick="addSymbol()">Add</button>
+      <button class="btn btn-accent" onclick="saveWatchlist()">Save All</button>
+    </div>
+  </section>
+
+  <!-- Open Positions -->
+  <section>
+    <h3>Open Positions</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Shares</th>
+          <th>Entry</th>
+          <th>Current</th>
+          <th>Unreal P&amp;L</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="positions-body">
+        <tr><td colspan="6" style="text-align:center;color:var(--text-dim)">No open positions</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Risk Parameters -->
+  <section>
+    <h3>Risk Parameters</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Max Position %</label>
+        <input type="number" id="risk-max_position_pct" step="0.01" min="0.01" max="1">
+      </div>
+      <div class="form-group">
+        <label>Stop Loss %</label>
+        <input type="number" id="risk-per_trade_stop_pct" step="0.005" min="0.001" max="0.5">
+      </div>
+      <div class="form-group">
+        <label>Take Profit %</label>
+        <input type="number" id="risk-take_profit_pct" step="0.01" min="0.001">
+      </div>
+      <div class="form-group">
+        <label>Daily Max Loss %</label>
+        <input type="number" id="risk-daily_max_loss_pct" step="0.005" min="0.001" max="0.5">
+      </div>
+      <div class="form-group">
+        <label>Max Positions</label>
+        <input type="number" id="risk-max_open_positions" step="1" min="1">
+      </div>
+      <div class="form-group">
+        <label>Max Trades/Day</label>
+        <input type="number" id="risk-max_trades_per_day" step="1" min="1">
+      </div>
+      <button class="btn btn-accent" onclick="saveRisk()">Save</button>
+    </div>
+  </section>
+
+  <!-- Journal -->
+  <section>
+    <h3>Journal (Recent)</h3>
+    <table>
+      <thead>
+        <tr><th>Time</th><th>Event</th><th>Symbol</th><th>Trade</th><th>Note</th></tr>
+      </thead>
+      <tbody id="journal-body">
+        <tr><td colspan="5" style="text-align:center;color:var(--text-dim)">No entries</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+
+<!-- ======================== RESEARCH VIEW ======================== -->
+<div id="view-research" class="view">
+
+  <!-- Backtest -->
+  <section>
+    <h3>Backtest Runner</h3>
+    <div class="disclaimer">
+      Backtest results are NOT a prediction of live performance. Slippage, fills,
+      and data gaps differ in reality.
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Symbol</label>
+        <input type="text" id="bt-symbol" value="AAPL">
+      </div>
+      <div class="form-group">
+        <label>Strategy</label>
+        <select id="bt-strategy"><option>ma_crossover</option></select>
+      </div>
+      <div class="form-group">
+        <label>Period</label>
+        <input type="text" id="bt-period" value="60d" style="width:60px">
+      </div>
+      <div class="form-group">
+        <label>Interval</label>
+        <select id="bt-interval">
+          <option value="1m">1m</option>
+          <option value="5m" selected>5m</option>
+          <option value="15m">15m</option>
+          <option value="1h">1h</option>
+          <option value="1d">1d</option>
+        </select>
+      </div>
+      <button class="btn btn-accent" id="btn-backtest" onclick="runBacktest()">Run Backtest</button>
+    </div>
+  </section>
+
+  <div id="bt-results" style="display:none">
+    <section>
+      <h3>Stats</h3>
+      <div id="bt-stats"></div>
+    </section>
+    <section>
+      <h3>Equity Curve</h3>
+      <canvas id="eq-chart"></canvas>
+    </section>
+    <section>
+      <h3>Trades</h3>
+      <table>
+        <thead>
+          <tr><th>Entry</th><th>Exit</th><th>Shares</th><th>Price</th><th>Reason</th><th>P&amp;L</th></tr>
+        </thead>
+        <tbody id="bt-trades-body"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- Screener -->
+  <section>
+    <h3>Screener</h3>
+    <div class="disclaimer">
+      Data from yfinance is DELAYED (~15 min). Use this for scanning, not live decisions.
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:1">
+        <label>Watchlist (comma-separated, blank = config default)</label>
+        <input type="text" id="scr-watchlist" style="width:100%" placeholder="AAPL, MSFT, NVDA...">
+      </div>
+      <div class="form-group">
+        <label>Period</label>
+        <input type="text" id="scr-period" value="60d" style="width:60px">
+      </div>
+      <div class="form-group">
+        <label>Interval</label>
+        <select id="scr-interval">
+          <option value="5m" selected>5m</option>
+          <option value="15m">15m</option>
+          <option value="1h">1h</option>
+          <option value="1d">1d</option>
+        </select>
+      </div>
+      <button class="btn btn-accent" id="btn-screener" onclick="runScreener()">Run Screener</button>
+    </div>
+  </section>
+
+  <div id="scr-results" style="display:none">
+    <section>
+      <table>
+        <thead>
+          <tr><th>Symbol</th><th>Last Close</th><th>Target</th><th>Fresh Entry</th><th>Strategy</th><th>As Of</th></tr>
+        </thead>
+        <tbody id="scr-body"></tbody>
+      </table>
+    </section>
+  </div>
+
+</div>
+
+<!-- ======================== FLATTEN MODAL ======================== -->
+<div id="flatten-modal" class="modal-overlay">
+  <div class="modal">
+    <h3>Flatten All Positions</h3>
+    <p>This will cancel all bracket orders and market-close every open position. This action cannot be undone.</p>
+    <div class="modal-btns">
+      <button class="btn" onclick="hideFlattenModal()">Cancel</button>
+      <button class="btn btn-solid-red" onclick="confirmFlatten()">Flatten All</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js?v=4"></script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+# ============================================================================
+#  ibkr_daytrader configuration  (feature 10: one place for every knob)
+#  Copy this file to config.yaml and edit. config.yaml is gitignored.
+# ============================================================================
+
+broker:
+  host: 127.0.0.1
+  port: 7497          # 7497 = TWS paper | 4002 = IB Gateway paper
+                      # 7496 = TWS live  | 4001 = IB Gateway live
+  client_id: 1        # unique per concurrent connection
+  mode: paper         # paper | live
+  allow_live: false   # SAFETY: live trading is refused unless BOTH
+                      # mode == live AND allow_live == true.
+
+account:
+  currency: USD
+  backtest_starting_equity: 100000   # used only by the backtester
+
+# --- Risk management (feature 5): the seatbelt. Tune these first. ----------
+risk:
+  max_position_pct: 0.10      # max fraction of equity in one position
+  per_trade_stop_pct: 0.02    # stop-loss distance below entry (2%)
+  take_profit_pct: 0.04       # take-profit distance above entry (4% = 2:1 reward:risk)
+  daily_max_loss_pct: 0.03    # KILL SWITCH: halt all trading for the day at -3% equity
+  max_open_positions: 3
+  max_trades_per_day: 6
+
+# --- Strategy selection (feature 3). Swap `name`; params below apply. ------
+strategy:
+  name: ma_crossover          # orb | ma_crossover | mean_reversion | vwap
+  params:
+    # ma_crossover
+    fast: 9
+    slow: 21
+    # orb
+    opening_minutes: 30
+    # mean_reversion
+    rsi_period: 14
+    oversold: 30
+    overbought: 70
+    # vwap
+    vwap_band_pct: 0.0
+
+# --- Live/intraday data pull from IBKR -------------------------------------
+data:
+  bar_size: "5 mins"          # IBKR bar size string
+  lookback: "10 D"
+  rth_only: true              # regular trading hours only
+
+# --- Screener (feature 8): morning scan over a watchlist via yfinance ------
+screener:
+  watchlist: [AAPL, MSFT, NVDA, AMD, TSLA, AMZN, META, GOOGL, SPY, QQQ]
+  yf_period: "60d"
+  yf_interval: "5m"           # "1d", "1h", "15m", "5m"...
+
+# --- Trade journal (feature 7) ---------------------------------------------
+journal:
+  path: "./logs/journal.csv"
+
+# --- Live auto-trading loop (feature 4): the riskiest piece ----------------
+live:
+  symbols:                      # per-symbol strategy assignment
+    AAPL:
+      strategy: ma_crossover
+      params:
+        fast: 9
+        slow: 21
+    MSFT:
+      strategy: ma_crossover
+      params:
+        fast: 9
+        slow: 21
+    NVDA:
+      strategy: orb
+      params:
+        opening_minutes: 30
+  poll_seconds: 30              # how often to evaluate signals
+  flatten_before_close_min: 10  # flatten everything N minutes before the close
+  flatten_on_kill: true         # flatten all positions when the kill switch trips
+  flatten_on_exit: true         # flatten on Ctrl-C / shutdown
+
+# --- Backtester (feature 2) ------------------------------------------------
+backtest:
+  symbol: AAPL
+  period: "60d"
+  interval: "5m"
+  commission_per_share: 0.005
+  slippage_bps: 1.0           # basis points of slippage per fill
+  intraday_only: true         # flatten at end of each day (day-trading)

@@ -1,0 +1,36 @@
+# Local configuration (contains personal ports/watchlists; use config.example.yaml)
+config.yaml
+
+# Runtime output
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# IDE / tooling
+.idea/
+.vscode/
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
